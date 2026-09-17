@@ -1,0 +1,35 @@
+{
+  "name": "leadscrape-backend",
+  "version": "1.0.0",
+  "description": "LeadScrape Backend - Node.js, Express, Sequelize, MySQL",
+  "main": "server.js",
+  "scripts": {
+    "check-port": "node -e \"require('./src/utils/portCheck').checkPortAndWarn(process.env.PORT || 8000).then(inUse => { if (inUse) process.exit(1); })\"",
+    "predev": "npm run check-port",
+    "prestart": "npm run check-port",
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "seed": "node seed-data.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.7",
+    "bcryptjs": "^2.4.3",
+    "cheerio": "^1.0.0",
+    "cors": "^2.8.5",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.11.0",
+    "pdfkit": "^0.20.2",
+    "playwright": "^1.47.0",
+    "robots-parser": "^3.0.1",
+    "sequelize": "^6.37.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}

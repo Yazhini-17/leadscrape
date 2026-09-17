@@ -1,39 +1,13 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.pyo
-*.pyd
-.Python
-*.egg-info/
-dist/
-build/
-*.egg
-.eggs/
-
-# Virtual environments
-venv/
-env/
-.venv/
-ENV/
+# Node / npm
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Environment variables (secrets — never commit)
 .env
 .env.local
 .env.*.local
-
-# Node / npm (stale Node/Express experiment artifacts)
-backend/node_modules/
-backend/package.json
-backend/package-lock.json
-backend/nodemon.json
-backend/server.js
-backend/seed-data.js
-backend/src/
-frontend/node_modules/
-
-# Test / scratch scripts (not part of the app)
-scratch/
 
 # Frontend build output
 frontend/dist/
@@ -41,9 +15,6 @@ frontend/dist/
 # Logs
 *.log
 logs/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # OS
 .DS_Store
@@ -54,3 +25,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Test / scratch scripts
+scratch/

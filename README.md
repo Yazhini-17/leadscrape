@@ -1,6 +1,6 @@
 # LeadScrape
 
-> **Web Scraping & Lead Discovery Platform** — Find businesses, crawl their websites, extract public contact information, and export leads as CSV or Excel.
+> **Web Scraping & Lead Discovery Platform** — Find businesses, crawl their websites, extract public contact information, and export leads as Excel or PDF.
 
 ---
 
@@ -9,11 +9,11 @@
 | Layer | Technology |
 |---|---|
 | Frontend | React 18, Vite, Tailwind CSS, React Router, Axios, Recharts, Lucide React |
-| Backend | Python 3.12+, FastAPI, SQLAlchemy 2.x, Pydantic v2 |
+| Backend | Node.js, Express, Sequelize 6, mysql2 |
 | Database | MySQL |
-| Scraping | HTTPX, BeautifulSoup4, lxml, Playwright |
-| Export | Python csv module, openpyxl |
-| Auth | JWT (python-jose), passlib[bcrypt] |
+| Scraping | Playwright, Cheerio, Axios |
+| Export | ExcelJS (Excel), PDFKit (PDF) |
+| Auth | JWT (jsonwebtoken), bcryptjs |
 
 ---
 
@@ -23,19 +23,19 @@
 React (Vite + Tailwind)
        │  Axios
        ▼
-  FastAPI REST API
+  Express REST API  (server.js → src/app.js)
        │
-  BackgroundTasks (Scraping Pipeline)
+  Background Pipeline  (setImmediate / non-blocking)
        │
   Discovery Engine ──► DuckDuckGo HTML / Bing fallback
        │
-  Website Crawler ──► HTTPX fast fetch / Playwright JS fallback
+  Website Crawler ──► Axios fast fetch / Playwright JS fallback
        │
   Data Extractor ──► phones, emails, address, social links, contacts
        │
   Cleaner & Deduplicator
        │
-  SQLAlchemy ORM
+  Sequelize ORM
        │
   MySQL Database
 ```
@@ -46,10 +46,9 @@ React (Vite + Tailwind)
 
 ### Prerequisites
 
-- Python 3.12+
-- Node.js 18+ (for frontend only)
+- Node.js 18+
 - MySQL running locally
-- `pip install playwright && playwright install chromium` (for JS rendering, optional)
+- `npx playwright install chromium` (for JS rendering, optional)
 
 ---
 
@@ -61,6 +60,8 @@ Create the MySQL database:
 CREATE DATABASE leadscrape CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
+Sequelize will auto-sync all tables on first boot (`sequelize.sync()`).
+
 ---
 
 ### 2. Backend Setup
@@ -68,26 +69,24 @@ CREATE DATABASE leadscrape CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```bash
 cd backend
 
-# Create virtual environment
-python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # Mac/Linux
-
 # Install dependencies
-pip install -r requirements.txt
+npm install
+
+# Install Playwright browser (for JS-rendering tasks)
+npx playwright install --with-deps chromium
 
 # Configure environment
 copy .env.example .env
 # Edit .env and set your DATABASE_URL, JWT_SECRET
 
-# Initialize database tables
-python init_db.py
+# Start the API server (development, with auto-reload)
+npm run dev
 
-# Start the API server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Or start in production mode
+npm start
 ```
 
-API docs available at: [http://localhost:8000/docs](http://localhost:8000/docs)
+API docs / health check: [http://localhost:8000/api/health](http://localhost:8000/api/health)
 
 ---
 
@@ -101,6 +100,7 @@ npm install
 
 # Configure environment
 copy .env.example .env
+# Set VITE_API_URL=http://localhost:8000
 
 # Start development server
 npm run dev
@@ -116,15 +116,17 @@ Frontend available at: [http://localhost:5173](http://localhost:5173)
 
 | Variable | Description | Default |
 |---|---|---|
-| `DATABASE_URL` | MySQL connection string | `mysql+pymysql://root:password@localhost:3306/leadscrape` |
+| `DATABASE_URL` | MySQL connection string | `mysql://root:password@localhost:3306/leadscrape` |
 | `JWT_SECRET` | JWT signing secret (change this!) | `changeme` |
 | `JWT_ALGORITHM` | JWT algorithm | `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Token lifetime | `1440` (24h) |
 | `FRONTEND_URL` | CORS allowed origin | `http://localhost:5173` |
+| `PORT` | Server port | `8000` |
 | `SCRAPER_TIMEOUT` | HTTP request timeout (seconds) | `15` |
 | `MAX_RETRIES` | HTTP retry count | `2` |
 | `RESPECT_ROBOTS_TXT` | Honor robots.txt | `true` |
 | `DOMAIN_RATE_LIMIT` | Seconds between requests per domain | `2` |
+| `ENV` | Environment name | `development` |
 
 ### Frontend (`frontend/.env`)
 
@@ -139,12 +141,12 @@ Frontend available at: [http://localhost:5173](http://localhost:5173)
 1. **Create Task** — User enters a keyword (e.g., "CBSE Schools"), location (e.g., "Puducherry"), and scraping parameters.
 2. **Discovery** — The engine queries DuckDuckGo HTML search (with Bing as fallback) for matching organization websites.
 3. **Deduplication** — Duplicate discoveries (same name/domain) are removed before crawling.
-4. **Crawling** — Each discovered website is crawled page by page (up to `max_pages_per_site`). HTTPX handles fast fetches; Playwright handles JS-heavy pages when enabled.
-5. **Extraction** — Phone numbers, emails, addresses, social links, and contact persons are extracted from each page's HTML using regex + BeautifulSoup.
+4. **Crawling** — Each discovered website is crawled page by page (up to `max_pages_per_site`). Axios handles fast fetches; Playwright handles JS-heavy pages when enabled.
+5. **Extraction** — Phone numbers, emails, addresses, social links, and contact persons are extracted from each page's HTML using regex + Cheerio.
 6. **Confidence Scoring** — Each lead is scored (0–100) based on how many fields were found:
    - Website: 20pts · Phone: 20pts · Email: 20pts · Address: 20pts · Contact: 10pts · Social: 10pts
    - HIGH ≥ 80 · MEDIUM ≥ 50 · LOW < 50
-7. **Export** — Leads can be exported as CSV or Excel with all extracted fields.
+7. **Export** — Leads can be exported as Excel (.xlsx) or PDF with all extracted fields.
 
 ---
 
@@ -157,15 +159,18 @@ Frontend available at: [http://localhost:5173](http://localhost:5173)
 | GET | `/api/auth/me` | Get current user |
 | POST | `/api/scrape` | Create & start a scraping task |
 | GET | `/api/tasks` | List all tasks |
-| GET | `/api/tasks/{task_id}` | Get task status & metrics |
-| DELETE | `/api/tasks/{task_id}` | Delete task + leads |
-| POST | `/api/tasks/{task_id}/cancel` | Cancel running task |
-| GET | `/api/tasks/{task_id}/leads` | Paginated leads list |
-| GET | `/api/leads/{lead_id}` | Full lead details |
-| POST | `/api/leads/{lead_id}/save` | Save a lead |
+| GET | `/api/tasks/:taskId` | Get task status & metrics |
+| DELETE | `/api/tasks/:taskId` | Delete task + leads |
+| POST | `/api/tasks/:taskId/cancel` | Cancel running task |
+| GET | `/api/tasks/:taskId/leads` | Paginated leads list |
+| GET | `/api/leads/:leadId` | Full lead details |
+| POST | `/api/leads/:leadId/save` | Save a lead |
+| DELETE | `/api/leads/:leadId` | Delete a lead |
 | GET | `/api/saved-leads` | Saved leads list |
-| GET | `/api/tasks/{task_id}/export/csv` | Download CSV |
-| GET | `/api/tasks/{task_id}/export/excel` | Download Excel |
+| DELETE | `/api/saved-leads/:savedId` | Remove saved lead |
+| GET | `/api/tasks/:taskId/export/excel` | Download Excel |
+| GET | `/api/tasks/:taskId/export/pdf` | Download PDF |
+| GET | `/api/exports` | Export history |
 | GET | `/api/dashboard/stats` | Dashboard stats |
 | GET | `/api/health` | Health check |
 
@@ -176,19 +181,18 @@ Frontend available at: [http://localhost:5173](http://localhost:5173)
 ```
 leadscrape/
 ├── backend/
-│   ├── app/
-│   │   ├── api/          # FastAPI routers
-│   │   ├── core/         # Config, security
-│   │   ├── database/     # SQLAlchemy engine
-│   │   ├── discovery/    # Search providers (DuckDuckGo, Bing)
-│   │   ├── exports/      # CSV / Excel generators
-│   │   ├── models/       # SQLAlchemy ORM models
-│   │   ├── schemas/      # Pydantic schemas
-│   │   ├── scraper/      # HTTP scraper, Playwright, extractor, cleaner, crawler
-│   │   ├── services/     # Task, lead, deduplication, verification services
-│   │   └── main.py       # FastAPI app entrypoint
-│   ├── init_db.py        # Database table creator
-│   ├── requirements.txt
+│   ├── src/
+│   │   ├── config/       # App config (env vars)
+│   │   ├── exports/      # Excel / PDF generators
+│   │   ├── middleware/   # Auth, error handler
+│   │   ├── models/       # Sequelize ORM models
+│   │   ├── routes/       # Express routers
+│   │   ├── scraper/      # Discovery, crawler, extractor, pipeline
+│   │   ├── services/     # Auth, task, lead services
+│   │   ├── utils/        # Port check, helpers
+│   │   └── app.js        # Express app setup
+│   ├── server.js         # Entry point (DB connect + listen)
+│   ├── package.json
 │   └── .env
 │
 ├── frontend/
@@ -204,6 +208,7 @@ leadscrape/
 │   ├── package.json
 │   └── vite.config.js
 │
+├── render.yaml           # Render.com deployment config
 └── README.md
 ```
 
@@ -215,7 +220,8 @@ leadscrape/
 - **Responsible scraping** — robots.txt is checked by default. Rate limiting enforced per domain.
 - **Playwright is opt-in** — Only used per task when "Enable JavaScript Rendering" is checked.
 - **Task IDs** — Sequential format: `TASK-000001`, `TASK-000002`, etc.
-- **Polling** — Frontend polls `GET /api/tasks/{task_id}` every 3 seconds during active tasks.
+- **Polling** — Frontend polls `GET /api/tasks/:taskId` every 3 seconds during active tasks.
+- **Schema** — Sequelize auto-syncs all tables on first boot; no manual SQL needed.
 
 ---
 

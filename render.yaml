@@ -1,18 +1,18 @@
 services:
-  # ── Backend: FastAPI Python web service ──────────────────────────────────────
+  # ── Backend: Node/Express web service ────────────────────────────────────────
   - type: web
     name: leadscrape-api
-    runtime: python
+    runtime: node
     region: singapore
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && playwright install --with-deps chromium
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: npm install && npx playwright install --with-deps chromium
+    startCommand: npm start
     healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
-        sync: false          # set manually in Render dashboard (contains secrets)
+        sync: false          # mysql://USER:PASS@HOST:PORT/DBNAME — set in Render dashboard
       - key: JWT_SECRET
-        sync: false
+        sync: false          # set in Render dashboard
       - key: JWT_ALGORITHM
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
@@ -30,6 +30,8 @@ services:
       - key: RESPECT_ROBOTS_TXT
         value: "true"
       - key: ENV
+        value: production
+      - key: NODE_ENV
         value: production
 
   # ── Frontend: React/Vite static site ─────────────────────────────────────────
