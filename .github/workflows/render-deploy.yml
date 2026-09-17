@@ -1,0 +1,44 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Render CLI
+        run: |
+          curl -o render.tar.gz https://render.com/download/latest/linux
+          tar -xzf render.tar.gz
+          sudo mv render /usr/local/bin/
+
+      - name: Authenticate with Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          render login --api-key $RENDER_API_KEY
+
+      - name: Set Render workspace
+        run: |
+          render workspace set tea-d97pn5d7vvec73cmloeg
+
+      - name: Validate render.yaml
+        run: |
+          render blueprints validate render.yaml
+
+      - name: Deploy to Render
+        run: |
+          echo "Render deployment will be triggered automatically via the render.yaml blueprint"
+          echo "Service will be created/updated on Render dashboard"
