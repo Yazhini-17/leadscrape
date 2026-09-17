@@ -1,12 +1,11 @@
 services:
-  # ── Backend: Node/Express web service ────────────────────────────────────────
+  # ── Unified LeadScrape Full-Stack Web Service ──────────────────────────────
   - type: web
-    name: leadscrape-api
+    name: leadscrape
     runtime: node
     region: singapore
-    rootDir: backend
-    buildCommand: npm install && npx playwright install --with-deps chromium
-    startCommand: npm start
+    buildCommand: cd frontend && npm install && npm run build && cd ../backend && npm install && npx playwright install --with-deps chromium
+    startCommand: cd backend && npm start
     healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
@@ -17,8 +16,8 @@ services:
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "1440"
-      - key: FRONTEND_URL
-        sync: false          # set after frontend is deployed
+      - key: VITE_API_URL
+        value: ""            # Relative path / same origin
       - key: SCRAPER_TIMEOUT
         value: "15"
       - key: MAX_RETRIES
@@ -33,19 +32,3 @@ services:
         value: production
       - key: NODE_ENV
         value: production
-
-  # ── Frontend: React/Vite static site ─────────────────────────────────────────
-  - type: web
-    name: leadscrape-frontend
-    runtime: static
-    region: singapore
-    rootDir: frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: dist
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
-    envVars:
-      - key: VITE_API_URL
-        sync: false          # set to your backend URL in Render dashboard
