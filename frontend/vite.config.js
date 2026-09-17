@@ -12,4 +12,5 @@ export default defineConfig({
       },
     },
   },
+  base: './', // For proper static asset loading
 })
