@@ -4,7 +4,7 @@ services:
     name: leadscrape
     runtime: node
     region: singapore
-    buildCommand: cd frontend && npm install && npm run build && cd ../backend && npm install && npx playwright install --with-deps chromium
+    buildCommand: cd frontend && npm install && npm run build && cd ../backend && npm install
     startCommand: cd backend && npm start
     healthCheckPath: /api/health
     envVars:
@@ -16,8 +16,8 @@ services:
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: "1440"
-      - key: VITE_API_URL
-        value: ""            # Relative path / same origin
+      - key: FRONTEND_URL
+        value: ""            # Same origin now
       - key: SCRAPER_TIMEOUT
         value: "15"
       - key: MAX_RETRIES

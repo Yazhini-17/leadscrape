@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const config = require('./config/config');
 const routes = require('./routes');
 const errorHandler = require('./middleware/errorHandler');
@@ -35,6 +36,17 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Mount all API routes under /api
 app.use('/api', routes);
+
+// Serve static frontend files in production
+if (config.ENV === 'production') {
+  const frontendDistPath = path.join(__dirname, '../../frontend/dist');
+  app.use(express.static(frontendDistPath));
+
+  // Catch-all route for React Router client-side routing
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+}
 
 // Centralized error handler
 app.use(errorHandler);
